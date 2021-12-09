@@ -26,7 +26,6 @@ if __name__ == '__main__':
         from PySide6 import QtWidgets
         from h5gview import ui
 
-
         # Create app and window
         app = QtWidgets.QApplication([])
         main = ui.Main()

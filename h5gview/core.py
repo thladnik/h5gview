@@ -59,14 +59,46 @@ class FileGroup:
         return toplevel
 
 
-class File(ABC):
+class Item(ABC):
+    def __init__(self):
+        self.id: str = str(uuid.uuid4())
+        self._name: str = None
+        self._path: str = None
+        self._attributes: List[Attribute] = []
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
+
+    @property
+    def attributes(self) -> List[Attribute]:
+        return self._attributes
+
+    @attributes.setter
+    def attributes(self, attributes):
+        self._attributes = attributes
+
+
+class File(Item):
 
     def __init__(self, path):
-        self.id = str(uuid.uuid4())
-        self.path: str = os.path.abspath(path)
-        self.name = self.path.split('/')[-1]
-        log.info(f'Create {self} from {self.path}')
+        Item.__init__(self)
+        log.info(f'Create {self} from {path}')
 
+        self.path = os.path.abspath(path)
+        _, self.name = os.path.split(self.path)
         self._file = None
         self.filegroup = None
         self._root_group = None
@@ -115,7 +147,7 @@ class FileFactory:
             log.warning(f'Can not add file type {file_type} for extension {EXT}. Extension already in list')
             return
 
-        log.warning(f'Add extension {EXT} for file type {file_type}')
+        log.info(f'Add extension {EXT} for file type {file_type}')
         cls.file_types[EXT] = file_type
         cls.known_extensions.append(EXT)
 
@@ -124,39 +156,27 @@ class FileFactory:
         [cls.add_extension(ext, file_type) for ext in extensions]
 
 
-class Group(ABC):
+class Group(Item):
 
     def __init__(self, file: File):
-        self.id = str(uuid.uuid4())
+        Item.__init__(self)
         self.file = file
 
         self.groups: List[Group] = []
         self.datasets: List[Dataset] = []
-        self.attributes: List[Attribute] = []
 
 
-class Dataset(ABC):
+class Dataset(Item):
 
     def __init__(self, file: File):
-        self.id = str(uuid.uuid4())
+        Item.__init__(self)
         self.file = file
-
-        self.attributes: List[Attribute] = []
 
         self._shape: Tuple[int] = None
         self._maxshape: Tuple[Union[int,None]] = None
         self._dtype: type = None
-        self._name: str = None
-        self._path: str = None
+        self._data: np.ndarray = None
         self.additional_data = {}
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        self._name = name
 
     @property
     def shape(self) -> Tuple[int]:
@@ -182,6 +202,12 @@ class Dataset(ABC):
     def dtype(self, dtype):
         self._dtype = dtype
 
+    @property
+    def data(self):
+        return self._data
+
+
+
 
 class Attribute(ABC):
 
@@ -192,7 +218,7 @@ class Attribute(ABC):
         self._shape: Tuple[int] = kwargs.get('shape')
         self._maxshape: Tuple[Union[int,None]] = kwargs.get('maxshape')
         self._dtype: type = kwargs.get('dtype')
-        self._data = Any = kwargs.get('data')
+        self._data: Any = kwargs.get('data')
 
     @property
     def name(self):
