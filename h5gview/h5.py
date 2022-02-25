@@ -24,7 +24,7 @@ class H5Group(core.Group):
 
     def __init__(self, file, group: h5py.Group):
         core.Group.__init__(self, file)
-        log.info(f'Create {self} from {group} in {self.file}')
+        log.debug(f'Create {self} from {group} in {self.file}')
 
         self._group = group
         self.name = self._group.name.split('/')[-1]
@@ -39,12 +39,22 @@ class H5Group(core.Group):
         return f'Group("{self.id}")'
 
     def _get_attributes(self):
-        return [core.Attribute(self.file,
-                               name=name,
-                               dtype=self._group.attrs[name].dtype,
-                               shape=self._group.attrs[name].shape,
-                               data=self._group.attrs[name])
-                for name in self._group.attrs]
+        attr_list = []
+        for attr_name, attr in self._group.attrs.items():
+            if hasattr(attr, 'dtype'):
+                attr_list.append(core.Attribute(self.file,
+                                                name=attr_name,
+                                                dtype=attr.dtype,
+                                                shape=attr.shape,
+                                                data=attr))
+            else:
+                attr_list.append(core.Attribute(self.file,
+                                                name=attr_name,
+                                                dtype=type(attr),
+                                                shape=len(attr),
+                                                data=attr))
+
+        return attr_list
 
     def get(self):
         return {**{g.name: g for g in self.groups}, **{d.name: d for d in self.datasets}}
@@ -57,7 +67,7 @@ class H5Dataset(core.Dataset):
 
     def __init__(self, file, dataset: h5py.Dataset):
         core.Dataset.__init__(self, file)
-        log.info(f'Create {self} from {dataset} in {self.file}')
+        log.debug(f'Create {self} from {dataset} in {self.file}')
 
         self._dataset = dataset
         self.name = self._dataset.name.split('/')[-1]

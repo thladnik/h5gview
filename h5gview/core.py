@@ -4,7 +4,6 @@ import os
 from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Any, Type, Tuple
 import uuid
-import h5py
 import numpy as np
 
 log = logging.getLogger(__name__)

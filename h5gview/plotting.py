@@ -44,7 +44,7 @@ class Plot1D(Plot):
 
         geo = self.screen().geometry()
 
-        self.move(geo.width()-geo.width()//2, geo.height()//10)
+        # self.move(geo.width()-geo.width()//2, geo.height()//10)
         self.resize(geo.width()//3, geo.height()//3)
 
         self._plots = []

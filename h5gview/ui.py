@@ -8,21 +8,21 @@ from h5gview import plotting
 log = logging.getLogger(__name__)
 
 
-class Main(QtWidgets.QMainWindow):
+class Main(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
-        QtWidgets.QMainWindow.__init__(self, *args, **kwargs)
+        QtWidgets.QWidget.__init__(self, *args, **kwargs)
 
         self.tree_items = []
         log.info('Open main window')
 
         geo = self.screen().geometry()
-        self.move(0, 0)
         self.resize(geo.width() // 2, 7 * geo.height() // 10)
+        self.setLayout(QtWidgets.QHBoxLayout())
 
         self._central_widget = QtWidgets.QWidget()
         self._central_widget.setLayout(QtWidgets.QGridLayout())
-        self.setCentralWidget(self._central_widget)
+        self.layout().addWidget(self._central_widget)
 
         # File tree
         self._file_tree = FileTree(self)
@@ -57,7 +57,11 @@ class Main(QtWidgets.QMainWindow):
 
     def _update_info(self, selected: QtCore.QItemSelection, unselected: QtCore.QItemSelection):
         # Fetch item data
-        tree_item = self._file_tree.itemFromIndex(selected.indexes()[0])
+        indices = selected.indexes()
+        if len(indices) == 0:
+            return
+
+        tree_item = self._file_tree.itemFromIndex(indices[0])
         data_item = tree_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
 
         log.debug(f'Selected {data_item}')
@@ -110,6 +114,13 @@ class Main(QtWidgets.QMainWindow):
             # Expand FileGroup by default
             tl_item.setExpanded(True)
 
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+
+        # Clear filegroup register (important if called multiple times within one session)
+        core.FileGroup.filegroup_register.clear()
+
+        event.accept()
+
 
 class FileTree(QtWidgets.QTreeWidget):
 
@@ -159,7 +170,7 @@ class FileTree(QtWidgets.QTreeWidget):
     def _plot(self, plot_type: type, data_item: core.Dataset):
         def _plot():
             log.debug(f'{plot_type.__name__} for {data_item}')
-            plot =  plot_type(self, data_item)
+            plot = plot_type(self, data_item)
             self.plots[plot.id] = plot
 
         return _plot
@@ -215,9 +226,9 @@ class ObjectInfo(QtWidgets.QScrollArea):
         for name, label in self.available_fields.items():
             self.all_fields[name] = ObjectInfoField(self, label)
             self.layout().addWidget(self.all_fields[name])
-        self.table = QtWidgets.QTableWidget()
-        self.table.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
-        self.layout().addWidget(self.table)
+        self.data_table = QtWidgets.QTableWidget()
+        self.data_table.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
+        self.layout().addWidget(self.data_table)
 
     def _new_info_field(self, name):
         # Create field for name
@@ -229,6 +240,8 @@ class ObjectInfo(QtWidgets.QScrollArea):
         return field
 
     def update_info(self, data_item: Union[core.Dataset, core.Group]):
+
+        # Update fields
         for name, field in self.all_fields.items():
             if data_item is None:
                 field.hide()
@@ -241,6 +254,29 @@ class ObjectInfo(QtWidgets.QScrollArea):
             else:
                 field.line_edit.setText(str(getattr(data_item, name)))
                 field.show()
+
+        # Update data table
+        self.data_table.clear()
+        if not isinstance(data_item, core.Dataset):
+            return
+
+        if len(data_item.shape) == 1:
+            self.data_table.setColumnCount(data_item.shape[0])
+            self.data_table.setHorizontalHeaderLabels(range(data_item.shape[0]))
+            self.data_table.setRowCount(1)
+
+            for i, d in enumerate(data_item.data):
+                self.data_table.setItem(0, i, QtWidgets.QTableWidgetItem(d))
+
+        elif len(data_item.shape) == 2:
+            self.data_table.setColumnCount(data_item.shape[0])
+            self.data_table.setHorizontalHeaderLabels([str(i) for i in range(data_item.shape[0])])
+            self.data_table.setRowCount(data_item.shape[1])
+            self.data_table.setVerticalHeaderLabels([str(i) for i in range(data_item.shape[1])])
+
+            for i in range(data_item.shape[0]):
+                for j in range(data_item.shape[1]):
+                    self.data_table.setItem(j, i, QtWidgets.QTableWidgetItem(str(data_item.data[i, j])))
 
 
 class ObjectInfoField(QtWidgets.QWidget):
