@@ -12,6 +12,7 @@ class Main(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
         QtWidgets.QWidget.__init__(self, *args, **kwargs)
+        self.setWindowTitle('h5gview')
 
         self.tree_items = []
         log.info('Open main window')
@@ -171,6 +172,7 @@ class FileTree(QtWidgets.QTreeWidget):
         def _plot():
             log.debug(f'{plot_type.__name__} for {data_item}')
             plot = plot_type(self, data_item)
+            plot.activateWindow()
             self.plots[plot.id] = plot
 
         return _plot
@@ -260,13 +262,21 @@ class ObjectInfo(QtWidgets.QScrollArea):
         if not isinstance(data_item, core.Dataset):
             return
 
+        max_display_num = 10**5
         if len(data_item.shape) == 1:
-            self.data_table.setColumnCount(data_item.shape[0])
-            self.data_table.setHorizontalHeaderLabels(range(data_item.shape[0]))
+            max_i = data_item.shape[0] if data_item.shape[0] <= max_display_num else max_display_num
+            self.data_table.setColumnCount(max_i)
+            self.data_table.setHorizontalHeaderLabels([str(i) for i in range(max_i)])
             self.data_table.setRowCount(1)
 
-            for i, d in enumerate(data_item.data):
-                self.data_table.setItem(0, i, QtWidgets.QTableWidgetItem(d))
+            for i in range(max_i):
+                self.data_table.setItem(0, i, QtWidgets.QTableWidgetItem(str(data_item.data[i])))
+
+            # Indicate croppped overflow
+            if data_item.shape[0] > max_i:
+                self.data_table.setColumnCount(max_i + 1)
+                self.data_table.setHorizontalHeaderItem(max_i, QtWidgets.QTableWidgetItem('Cropped values'))
+                self.data_table.setItem(0, max_i, QtWidgets.QTableWidgetItem('...'))
 
         elif len(data_item.shape) == 2:
             self.data_table.setColumnCount(data_item.shape[0])
